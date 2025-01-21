@@ -34,7 +34,7 @@ void mul_matrix_avx2(double* A, const double* B, const double* C,
                      size_t cC, size_t rC)
 {
     assert(cB == rC && cA == cC && rA == rB);
-    assert((cA & 0b111111) == 0);
+    assert((cA & 0x3f) == 0);
 
     const size_t values_per_operation = 4;
 
@@ -114,8 +114,6 @@ int main(int argc, char** argv)
 
     auto show_matrix = [](const double* A, size_t colsc, size_t rowsc)
     {
-        return;
-
         for (size_t r = 0; r < rowsc; ++r)
         {
             cout << "[" << A[r + 0 * rowsc];
@@ -129,6 +127,7 @@ int main(int argc, char** argv)
     };
 
     const size_t matrix_size = 64 * (1 << 4);
+    const size_t trial_count = 3;
 
     vector<double> A(matrix_size * matrix_size),
     //B(matrix_size * matrix_size, 0),
@@ -141,21 +140,29 @@ int main(int argc, char** argv)
     auto B = identity_matrix;
     auto C = permutation_matrix;
 
-    //Perform naive multiplication.
-    auto t1 = chrono::steady_clock::now();
-    mul_matrix(A.data(), matrix_size, matrix_size,
-               B.data(), matrix_size, matrix_size,
-               C.data(), matrix_size, matrix_size);
-    auto t2 = chrono::steady_clock::now();
+    size_t total = 0;
+    for(size_t trial = 0; trial < trial_count; trial++) {
+        auto t1 = chrono::steady_clock::now();
+        mul_matrix(A.data(), matrix_size, matrix_size,
+                   B.data(), matrix_size, matrix_size,
+                   C.data(), matrix_size, matrix_size);
+        auto t2 = chrono::steady_clock::now();
+        total += chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
+    }
     //show_matrix(A.data(), matrix_size, matrix_size);
-    cout << "Default: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms.\n";
+    cout << "Default: " << total / trial_count << " ms.\n";
 
     //Perform vectorized multiplication.
-    t1 = chrono::steady_clock::now();
-    mul_matrix_avx2(D.data(), B.data(), C.data(), matrix_size, matrix_size, matrix_size, matrix_size, matrix_size, matrix_size);
-    t2 = chrono::steady_clock::now();
+    total = 0;
+    for(size_t trial = 0; trial < trial_count; trial++) {
+        auto t1 = chrono::steady_clock::now();
+        mul_matrix_avx2(D.data(), B.data(), C.data(), matrix_size, matrix_size, matrix_size, matrix_size, matrix_size,
+                        matrix_size);
+        auto t2 = chrono::steady_clock::now();
+        total += chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
+    }
     //show_matrix(D.data(), matrix_size, matrix_size);
-    cout << "SIMD: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms.\n";
+    cout << "SIMD: " << total << " ms.\n";
 
     if (!std::memcmp(static_cast<void*>(A.data()),
                      static_cast<void*>(D.data()),
@@ -164,8 +171,8 @@ int main(int argc, char** argv)
         cout << "Matrices are equal.\n";
     }
 
-    show_matrix(A.data(), matrix_size, matrix_size);
-    show_matrix(D.data(), matrix_size, matrix_size);
+    // show_matrix(A.data(), matrix_size, matrix_size);
+    // show_matrix(D.data(), matrix_size, matrix_size);
 
     return 0;
 }

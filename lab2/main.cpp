@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <immintrin.h>
+#include "fstream"
 
 const int cols = 1 << 14;
 const int rows = 1 << 14;
@@ -47,24 +48,60 @@ int main(int argc, char** argv)
         std::cout << "\n";
     };
 
+    std::ofstream output("output.csv");
+    if (!output.is_open())
+    {
+        std::cout << "Error. Could not open file!\n";
+        return -1;
+    }
+
+    output << "Default,SIMD\n";
+
 //    show_matrix(B.data(), cols, rows);
 //    show_matrix(C.data(), cols, rows);
 
-    auto t1 = std::chrono::steady_clock::now();
-    add_matrix(A.data(), B.data(), C.data(), cols, rows);
-    auto t2 = std::chrono::steady_clock::now();
-//    show_matrix(A.data(), cols, rows);
-    using namespace std::chrono;
-    std::cout << "Default: " << duration_cast<milliseconds>(t2 - t1).count() << " ms.\n";
+    const size_t trial_count = 3;
 
-    std::fill_n(A.data(), rows * cols, 0);
-    std::fill_n(B.data(), rows * cols, -2);
-    std::fill_n(C.data(), rows * cols, 1);
+    double data[2][3] = {
+            {0, -2, 1},
+            {0, 1, -2}
+    };
 
-    t1 = std::chrono::steady_clock::now();
-    add_matrix_avx(A.data(), B.data(), C.data(), cols, rows);
-    t2 = std::chrono::steady_clock::now();
+    size_t data_index = 0;
+
+    size_t total = 0;
+    for(size_t trial = 0; trial < trial_count; trial++) {
+        std::fill_n(A.data(), rows * cols, data[data_index][0]);
+        std::fill_n(B.data(), rows * cols, data[data_index][1]);
+        std::fill_n(C.data(), rows * cols, data[data_index][2]);
+
+        auto t1 = std::chrono::steady_clock::now();
+        add_matrix(A.data(), B.data(), C.data(), cols, rows);
+        auto t2 = std::chrono::steady_clock::now();
+        total += duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+
+        data_index = 1 - data_index;
+    }
 //    show_matrix(A.data(), cols, rows);
-    std::cout << "SIMD: " << duration_cast<milliseconds>(t2 - t1).count() << " ms.\n";
+    std::cout << "Default: " << total / trial_count << " ms.\n";
+    output << total / trial_count << ",";
+
+    total = 0;
+    for(size_t trial = 0; trial < trial_count; trial++) {
+        std::fill_n(A.data(), rows * cols, data[data_index][0]);
+        std::fill_n(B.data(), rows * cols, data[data_index][1]);
+        std::fill_n(C.data(), rows * cols, data[data_index][2]);
+
+        auto t1 = std::chrono::steady_clock::now();
+        add_matrix_avx(A.data(), B.data(), C.data(), cols, rows);
+        auto t2 = std::chrono::steady_clock::now();
+        total += duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+
+        data_index = 1 - data_index;
+    }
+//    show_matrix(A.data(), cols, rows);
+    std::cout << "SIMD: " << total / trial_count << " ms.\n";
+    output << total / trial_count << "\n";
+
     return 0;
 }

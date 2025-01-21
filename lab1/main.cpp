@@ -58,7 +58,7 @@ int main()
     }
 
     const size_t thread_count = std::thread::hardware_concurrency();
-    const size_t trial_count = 20;
+    const size_t trial_count = 3;
     const double a = 0;
     const double b = 1;
     const double sToMs = 1'000;

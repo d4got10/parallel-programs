@@ -2,3 +2,4 @@
 */cmake-build-debug
 *.exe
 *.csv
+output.png
